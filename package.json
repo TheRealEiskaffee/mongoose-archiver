@@ -1,0 +1,24 @@
+{
+  "name": "mongoose-archiver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheRealEiskaffee/mongoose-archiver.git"
+  },
+  "keywords": [
+    "mongoose",
+    "archiver",
+    "histories"
+  ],
+  "author": "David Koch",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/TheRealEiskaffee/mongoose-archiver/issues"
+  },
+  "homepage": "https://github.com/TheRealEiskaffee/mongoose-archiver#readme"
+}
