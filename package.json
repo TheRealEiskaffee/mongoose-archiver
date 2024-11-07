@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/TheRealEiskaffee/mongoose-archiver/issues"
   },
-  "homepage": "https://github.com/TheRealEiskaffee/mongoose-archiver#readme"
+  "homepage": "https://github.com/TheRealEiskaffee/mongoose-archiver#readme",
+  "dependencies": {
+    "mongoose": "^8.8.0"
+  }
 }
