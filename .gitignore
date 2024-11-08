@@ -1,6 +1,7 @@
 # Personal
 .vscode
 package-lock.json
+lib
 
 # Logs
 logs
