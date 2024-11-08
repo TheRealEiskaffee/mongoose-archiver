@@ -1,10 +1,10 @@
-import mongoose, { Schema, Types } from 'mongoose';
+import { Schema, Types } from 'mongoose';
 
-export default function mongooseArchiver(schema : Schema) {
+export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
           updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
-          historySchema : Schema = new mongoose.Schema(schema.obj, { timestamps: false });
-
+          historySchema : Schema = schema.clone();
+          
     historySchema.add({
         origin: {
             type: Types.ObjectId,
@@ -27,11 +27,11 @@ export default function mongooseArchiver(schema : Schema) {
         },
     });
 
-    updateMethods.forEach((method : TMethod) => {
+    updateMethods.forEach((method : any) => {
         schema.pre(method, async function (next) {
             const modelName = this.model.modelName,
                   updateQuery = this.getUpdate(),
-                  HistoryModel = mongoose.model(`${modelName}_history`, historySchema);
+                  HistoryModel = this.mongooseCollection.conn.model(`${modelName}_history`, historySchema);
 
             try {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
@@ -44,26 +44,23 @@ export default function mongooseArchiver(schema : Schema) {
                         version,
                         origin: docToUpdate._id,
                         archivedAt: new Date(),
-                        archivedBy:
-                        updateQuery?.updatedBy ||
-                        updateQuery?.$set?.updatedBy ||
-                        updateQuery?.createdBy,
+                        archivedBy: docToUpdate?.[options.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
                     });
 
                     await historyDoc.save();
                 }
 
                 next();
-            } catch (error) {
+            } catch (error : any) {
                 next(error);
             }
         });
     });
 
-    deleteMethods.forEach((method : TMethod) => {
+    deleteMethods.forEach((method : any) => {
         schema.pre(method, async function (next) {
             const modelName = this.model.modelName,
-                  HistoryModel = mongoose.model(`${modelName}_history`, historySchema);
+                  HistoryModel = this.mongooseCollection.conn.model(`${modelName}_history`, historySchema);
 
             try {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
@@ -74,20 +71,24 @@ export default function mongooseArchiver(schema : Schema) {
                         ...docToUpdate,
                         version,
                         archivedAt: new Date(),
-                        archivedBy: docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                        archivedBy: docToUpdate?.[options.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                         deletedAt: new Date(),
-                        deletedBy: docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                        deletedBy: docToUpdate?.[options.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                     });
 
                     await historyDoc.save();
                 }
 
                 next();
-            } catch (error) {
+            } catch (error : any) {
                 next(error);
             }
         });
     });
+}
+
+interface IOptions {
+    userField ?: string
 }
 
 type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';
