@@ -4,13 +4,26 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
           updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
           historySchema : Schema = schema.clone();
+          
+    //Remove all required field's in case that some data has added this flag after created objects
+    function setRequiredFalse(usedSchema : Schema) {
+        usedSchema
+            ?.eachPath((path, schemaType : any) => {
+                if (schemaType?.instance === 'Array' && schemaType?.casterConstructor?.schema) {
+                    setRequiredFalse(schemaType.casterConstructor.schema);
+                } else {
+                    if (schemaType?.isRequired) {
+                        schemaType.required(false);
+                    }
 
-    //Remove all required field,s in case that some data has added this flag after created objects
-    for (const path in historySchema.paths) {
-        if (historySchema.paths[path].isRequired) {
-            historySchema.paths[path].required(false);
-        }
+                    if(schemaType?.schema) {
+                        setRequiredFalse(schemaType.schema);
+                    }
+                }
+            });
     }
+  
+    setRequiredFalse(historySchema);
 
     historySchema.add({
         origin: {
