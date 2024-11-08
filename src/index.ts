@@ -44,7 +44,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                         version,
                         origin: docToUpdate._id,
                         archivedAt: new Date(),
-                        archivedBy: docToUpdate?.[options.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                        archivedBy: docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
                     });
 
                     await historyDoc.save();
@@ -71,9 +71,9 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                         ...docToUpdate,
                         version,
                         archivedAt: new Date(),
-                        archivedBy: docToUpdate?.[options.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                        archivedBy: docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                         deletedAt: new Date(),
-                        deletedBy: docToUpdate?.[options.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                        deletedBy: docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                     });
 
                     await historyDoc.save();
