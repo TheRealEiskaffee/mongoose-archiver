@@ -1,10 +1,17 @@
-import { Schema, Types } from 'mongoose';
+import { Schema, SchemaType, Types } from 'mongoose';
 
 export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
           updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
           historySchema : Schema = schema.clone();
-          
+
+    //Remove all required field,s in case that some data has added this flag after created objects
+    for (const path in historySchema.paths) {
+        if (historySchema.paths[path].isRequired) {
+            historySchema.paths[path].required(false);
+        }
+    }
+
     historySchema.add({
         origin: {
             type: Types.ObjectId,
