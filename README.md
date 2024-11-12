@@ -67,7 +67,7 @@ With the plugin applied, every `update` and `delete` operation will create a cor
 The plugin performs the following operations:
 
 1. **On Update**: Before executing an update, it clones the document's current state and saves it as a history record in a separate collection.
-2. **On Delete**: Before deleting a document, it saves the document’s state with `deletedAt` and `deletedBy` fields in a history collection.
+2. **On Delete**: Before deleting a document, it saves the document’s state with `deleted.at` and `deleted.by` fields in a history collection.
 
 Each history document includes:
 - `origin`: A reference to the original document.
