@@ -57,7 +57,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
                       version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1;
 
-                if (docToUpdate) {
+                if(docToUpdate) {
                     const historyDoc = new HistoryModel({
                         ...docToUpdate,
                         _id: new Types.ObjectId(),
@@ -70,6 +70,8 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                     });
 
                     await historyDoc.save();
+
+                    options.onUpdate(historyDoc);
                 }
 
                 next();
@@ -88,7 +90,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
                       version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) });
 
-                if (docToUpdate) {
+                if(docToUpdate) {
                     const historyDoc = new HistoryModel({
                         ...docToUpdate,
                         version,
@@ -103,6 +105,8 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                     });
 
                     await historyDoc.save();
+                    
+                    options.onDelete(historyDoc);
                 }
 
                 next();
@@ -114,7 +118,9 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 }
 
 interface IOptions {
-    userField ?: string
+    userField ?: string,
+    onUpdate ?: (historyDocument: any) => Promise<void> | void;
+    onDelete ?: (historyDocument: any) => Promise<void> | void;
 }
 
 type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';

@@ -8,6 +8,7 @@ A Mongoose plugin that archives documents before deletion or updates. This plugi
 - Archives documents before `update` or `delete` operations.
 - Saves a versioned history of each document.
 - Allows tracking of users who performed the operation.
+- **Custom Update/Delete Function**: Optionally, execute a custom function after each document update/delete, giving you additional flexibility.
 
 ## Installation
 
@@ -37,8 +38,16 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
         // Add other fields as needed
     });
 
-    // Apply the plugin, optionally specifying a `userField`
-    yourSchema.plugin(mongooseArchiver, { userField: 'updatedBy' });
+    // Apply the plugin, optionally specifying a `userField` and a custom `onUpdate` function
+    yourSchema.plugin(mongooseArchiver, { 
+        userField: 'updatedBy',
+        onUpdate: async (doc) => {
+            console.log(`Document with ID ${doc._id} was archived.`);
+        },
+        onDelete: async (doc) => {
+            console.log(`Document with ID ${doc._id} was deleted.`);
+        }
+    });
     ```
 
 3. Create a model and use it in your application:
@@ -61,6 +70,8 @@ With the plugin applied, every `update` and `delete` operation will create a cor
 ## Options
 
 - `userField` (optional): Specifies the field in the document to track the user who performed the update or delete action. By default, the plugin will attempt to use this field to store user information in the history record.
+- `onUpdate` (optional): A custom function that is executed after archiving a document on an update operation. This function receives the document being updated as a parameter and can perform additional actions if needed.
+- `onUpdate` (optional): A custom function that is executed after deleting a document on an delete operation. This function receives the document being updated as a parameter and can perform additional actions if needed.
 
 ## How It Works
 
@@ -93,10 +104,11 @@ The plugin sets up `pre` hooks for each method, creating a clone of the document
 ```typescript
 interface IOptions {
     userField?: string;
+    onUpdate?: (doc: any) => Promise<void> | void; // Custom function executed after update
 }
 ```
 
-Defines the optional settings for the plugin, allowing you to specify a field to track the user who performs the operation.
+Defines the optional settings for the plugin, allowing you to specify a field to track the user who performs the operation, and a custom `onUpdate` function to execute after each update.
 
 #### `TMethod` Type
 
