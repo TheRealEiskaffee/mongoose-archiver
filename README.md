@@ -1,3 +1,4 @@
+[![npm version](https://img.shields.io/npm/v/better-mongoose-archiver.svg)](https://www.npmjs.com/package/better-mongoose-archiver)
 
 # Mongoose Archiver Plugin
 
