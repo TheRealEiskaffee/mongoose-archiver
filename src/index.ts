@@ -71,7 +71,9 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 
                     await historyDoc.save();
 
-                    options?.onUpdate(historyDoc);
+                    if(typeof options?.onUpdate === 'function') {
+                        options.onUpdate(historyDoc);
+                    }
                 }
 
                 next();
@@ -106,7 +108,9 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 
                     await historyDoc.save();
                     
-                    options?.onDelete(historyDoc);
+                    if(typeof options?.onDelete === 'function') {
+                        options.onDelete(historyDoc);
+                    }
                 }
 
                 next();
