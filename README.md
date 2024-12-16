@@ -39,9 +39,10 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
         // Add other fields as needed
     });
 
-    // Apply the plugin, optionally specifying a `userField` and a custom `onUpdate` function
+    // Apply the plugin, optionally specifying a `userField`, `separator` for the collection name like: "users_history" (default is -) and a custom `onUpdate`, `onDelete` function
     yourSchema.plugin(mongooseArchiver, { 
         userField: 'updatedBy',
+        separator: '_',
         onUpdate: async (doc) => {
             console.log(`Document with ID ${doc._id} was archived.`);
         },
