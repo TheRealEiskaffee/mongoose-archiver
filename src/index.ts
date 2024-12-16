@@ -49,9 +49,9 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 
     updateMethods.forEach((method : any) => {
         schema.pre(method, async function (next) {
-            const modelName = this.model.modelName,
-                  updateQuery = this.getUpdate(),
-                  HistoryModel = this.mongooseCollection.conn.model(`${modelName}_history`, historySchema);
+            const updateQuery = this.getUpdate(),
+                  historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                  HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
@@ -68,7 +68,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                             by: docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
                         }
                     });
-
+                    
                     await historyDoc.save();
 
                     if(typeof options?.onUpdate === 'function') {
@@ -85,8 +85,8 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 
     deleteMethods.forEach((method : any) => {
         schema.pre(method, async function (next) {
-            const modelName = this.model.modelName,
-                  HistoryModel = this.mongooseCollection.conn.model(`${modelName}_history`, historySchema);
+            const historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                  HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
                 const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
@@ -123,6 +123,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 
 interface IOptions {
     userField ?: string,
+    separator ?: string,
     onUpdate ?: (historyDocument: any) => Promise<void> | void;
     onDelete ?: (historyDocument: any) => Promise<void> | void;
 }

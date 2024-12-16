@@ -25,14 +25,14 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
 
 1. Import the plugin and the necessary Mongoose modules:
 
-    ```typescript
-    import mongooseArchiver from 'better-mongoose-archiver';
+    ```javascript
+    import mongooseArchiver from 'mongoose-archiver';
     import { Schema } from 'mongoose';
     ```
 
 2. Define your schema and apply the plugin:
 
-    ```typescript
+    ```javascript
     const yourSchema = new Schema({
         name: String,
         updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -53,7 +53,7 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
 
 3. Create a model and use it in your application:
 
-    ```typescript
+    ```javascript
     const YourModel = mongoose.model('YourModel', yourSchema);
 
     // Example usage
@@ -66,13 +66,14 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
       .catch(err => console.error(err));
     ```
 
-With the plugin applied, every `update` and `delete` operation will create a corresponding history document in a separate collection (`yourModelName_histories`). This document will retain the previous version and metadata about the update or deletion.
+With the plugin applied, every `update` and `delete` operation will create a corresponding history document in a separate collection (`yourModelName_history`). This document will retain the previous version and metadata about the update or deletion.
 
 ## Options
 
 - `userField` (optional): Specifies the field in the document to track the user who performed the update or delete action. By default, the plugin will attempt to use this field to store user information in the history record.
+- `separator` (optional): Defines the separator for naming history collections (default: `'-'`).
 - `onUpdate` (optional): A custom function that is executed after archiving a document on an update operation. This function receives the document being updated as a parameter and can perform additional actions if needed.
-- `onUpdate` (optional): A custom function that is executed after deleting a document on an delete operation. This function receives the document being updated as a parameter and can perform additional actions if needed.
+- `onDelete` (optional): A custom function that is executed after archiving a document on a delete operation. This function receives the document being deleted as a parameter and can perform additional actions if needed.
 
 ## How It Works
 
@@ -96,7 +97,7 @@ This plugin uses the following methods:
 - **Update Methods**: `findOneAndUpdate`, `updateMany`, `updateOne`
 - **Delete Methods**: `deleteOne`, `deleteMany`, `findOneAndDelete`
 
-The plugin sets up `pre` hooks for each method, creating a clone of the document in a history collection (`yourModelName>_histories`) whenever an update or delete operation is performed.
+The plugin sets up `pre` hooks for each method, creating a clone of the document in a history collection (`yourModelName_history`) whenever an update or delete operation is performed.
 
 ### Types
 
@@ -105,20 +106,15 @@ The plugin sets up `pre` hooks for each method, creating a clone of the document
 ```typescript
 interface IOptions {
     userField?: string;
+    separator?: string;
     onUpdate?: (doc: any) => Promise<void> | void; // Custom function executed after update
+    onDelete?: (doc: any) => Promise<void> | void; // Custom function executed after delete
 }
 ```
 
-Defines the optional settings for the plugin, allowing you to specify a field to track the user who performs the operation, and a custom `onUpdate` function to execute after each update.
-
-#### `TMethod` Type
-
-```typescript
-type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';
-```
-
-Enumerates possible Mongoose methods that can be intercepted for archiving.
+Defines the optional settings for the plugin, allowing you to specify a field to track the user who performs the operation, and custom functions to execute after each update or delete.
 
 ## License
 
 MIT
+
