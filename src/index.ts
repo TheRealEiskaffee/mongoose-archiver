@@ -65,7 +65,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                               origin: docToUpdate._id,
                               archived : {
                                   at: new Date(),
-                                  by: updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                                  by: this?.options?.user || updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
                               }
                           });
                     
@@ -89,7 +89,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                   HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
-                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();                      
+                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
                 if(docToUpdate) {
                     const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
@@ -98,11 +98,11 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                               version,
                               archived : {
                                   at : new Date(),
-                                  by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                  by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                               },
                               deleted : {
                                   at : new Date(),
-                                  by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                  by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                               }
                           });
 

@@ -58,16 +58,16 @@ To use the Mongoose Archiver plugin, import it and add it to your schema:
     const YourModel = mongoose.model('YourModel', yourSchema);
 
     // Example usage
-    YourModel.updateOne({ name: 'Example' }, { name: 'Updated Example' })
+    YourModel.updateOne({ name: 'Example' }, { name: 'Updated Example' }, { user : '5d762323246cd34367f6af8c' })
       .then(() => console.log('Document updated and archived!'))
       .catch(err => console.error(err));
 
-    YourModel.deleteOne({ name: 'Example' })
+    YourModel.deleteOne({ name: 'Example' }, { user : '5d762323246cd34367f6af8c' })
       .then(() => console.log('Document deleted and archived!'))
       .catch(err => console.error(err));
     ```
 
-With the plugin applied, every `update` and `delete` operation will create a corresponding history document in a separate collection (`yourModelName_history`). This document will retain the previous version and metadata about the update or deletion.
+With the plugin applied, every `update` and `delete` operation will create a corresponding history document in a separate collection (`yourModelName_history`). This document will retain the previous version and metadata about the update or deletion. If you pass in the mongoose options the parameter `user` it will register who `update` or `delete` the document.
 
 ## Options
 
