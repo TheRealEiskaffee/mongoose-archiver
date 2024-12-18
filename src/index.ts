@@ -54,20 +54,20 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                   HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
-                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject(),
-                      version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1;
+                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
                 if(docToUpdate) {
-                    const historyDoc = new HistoryModel({
-                        ...docToUpdate,
-                        _id: new Types.ObjectId(),
-                        version,
-                        origin: docToUpdate._id,
-                        archived : {
-                            at: new Date(),
-                            by: updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
-                        }
-                    });
+                    const version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1,
+                          historyDoc = new HistoryModel({
+                              ...docToUpdate,
+                              _id: new Types.ObjectId(),
+                              version,
+                              origin: docToUpdate._id,
+                              archived : {
+                                  at: new Date(),
+                                  by: updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                              }
+                          });
                     
                     await historyDoc.save();
 
@@ -89,22 +89,22 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                   HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
-                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject(),
-                      version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) });
+                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();                      
 
                 if(docToUpdate) {
-                    const historyDoc = new HistoryModel({
-                        ...docToUpdate,
-                        version,
-                        archived : {
-                            at : new Date(),
-                            by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                        },
-                        deleted : {
-                            at : new Date(),
-                            by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                        }
-                    });
+                    const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
+                          historyDoc = new HistoryModel({
+                              ...docToUpdate,
+                              version,
+                              archived : {
+                                  at : new Date(),
+                                  by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                              },
+                              deleted : {
+                                  at : new Date(),
+                                  by : docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                              }
+                          });
 
                     await historyDoc.save();
                     
