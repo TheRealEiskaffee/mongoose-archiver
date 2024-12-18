@@ -54,7 +54,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                   HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
-                const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
+                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject(),
                       version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1;
 
                 if(docToUpdate) {
@@ -65,7 +65,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                         origin: docToUpdate._id,
                         archived : {
                             at: new Date(),
-                            by: docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                            by: updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
                         }
                     });
                     
@@ -89,7 +89,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                   HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
             try {
-                const docToUpdate = (await this.model.findOne(this.getQuery())).toObject(),
+                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject(),
                       version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) });
 
                 if(docToUpdate) {
