@@ -121,11 +121,35 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
     });
 }
 
+/**
+ * Configuration options for managing history operations.
+ */
 interface IOptions {
-    userField ?: string,
-    separator ?: string,
-    onUpdate ?: (historyDocument: any) => Promise<void> | void;
-    onDelete ?: (historyDocument: any) => Promise<void> | void;
+    /**
+     * Specifies the field used to identify the user responsible for changes, 
+     * such as `userId`. This acts as a fallback if no specific field is provided.
+     */
+    userField?: string;
+
+    /**
+     * Defines the separator used in constructing collection names.
+     * For example, `myCollection-histories` uses `-` as the default separator.
+     */
+    separator?: string;
+
+    /**
+     * A callback function executed when a history document is updated.
+     * @param historyDocument - The document being updated in the history collection.
+     * @returns A Promise (for async operations) or void.
+     */
+    onUpdate?: (historyDocument: any) => Promise<void> | void;
+
+    /**
+     * A callback function executed when a history document is deleted.
+     * @param historyDocument - The document being deleted in the history collection.
+     * @returns A Promise (for async operations) or void.
+     */
+    onDelete?: (historyDocument: any) => Promise<void> | void;
 }
 
 type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';
