@@ -1,33 +1,37 @@
-import { Schema, SchemaType, Types } from 'mongoose';
+import { Schema, Types } from 'mongoose';
 
+function cleanSchema(schema : any) {
+    if (typeof schema !== 'object' || schema === null) return schema;
+
+    const cleaned : any = {};
+
+    for (const key in schema) {
+        if (typeof schema?.[key] === 'object' && schema?.[key] !== null) {
+            cleaned[key] = cleanSchema(schema[key]);
+
+            if ('unique' in cleaned[key]) {
+                delete cleaned[key].unique;
+            }
+
+            if ('required' in cleaned[key]) {
+                delete cleaned[key].required;
+            }
+        } else {
+            cleaned[key] = schema[key];
+        }
+    }
+
+    return cleaned;
+}
 export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
           updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
-          historySchema : Schema = schema.clone();
-          
-    //Remove all required field's in case that some data has added this flag after created objects
-    function setRequiredFalse(usedSchema : Schema) {
-        usedSchema
-            ?.eachPath((path, schemaType : any) => {
-                if (schemaType?.instance === 'Array' && schemaType?.casterConstructor?.schema) {
-                    setRequiredFalse(schemaType.casterConstructor.schema);
-                } else {
-                    if (schemaType?.isRequired) {
-                        schemaType.required(false);
-                    }
-
-                    if(schemaType?.schema) {
-                        setRequiredFalse(schemaType.schema);
-                    }
-                }
-            });
-    }
-  
-    setRequiredFalse(historySchema);
+          historySchema = new Schema(cleanSchema(schema.clone().obj));
 
     historySchema.add({
         origin: {
             type: Types.ObjectId,
+            index: true
         },
         version: {
             type: Number,
@@ -37,12 +41,16 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
         archived: {
             at : {
                 type : Date,
-                default : () => new Date()
+                default : () => new Date(),
+                index: true
             },
             by: Types.ObjectId,
         },
         deleted: {
-            at : Date,
+            at : {
+                type : Date,
+                index: true
+            },
             by: Types.ObjectId,
         },
     });
