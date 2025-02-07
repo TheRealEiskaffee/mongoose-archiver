@@ -137,11 +137,11 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                                     }
                                 });
                             
-                            await historyDoc.save();
-
                             if(typeof options?.onUpdate === 'function') {
-                                options.onUpdate(historyDoc);
+                                await options.onUpdate(historyDoc, updateQuery);
                             }
+
+                            await historyDoc.save();
                         }
 
                         next();
@@ -189,14 +189,6 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                     }
                 });
         });
-
-    if(typeof options?.onSaveHistory === 'function') {
-        historySchema
-            .pre('save', async function (next) {
-                await options.onSaveHistory(this);
-                next();
-            });
-    }
 }
 
 /**
@@ -216,11 +208,12 @@ interface IOptions {
     separator?: string;
 
     /**
-     * A callback function executed when a history document is updated.
-     * @param historyDocument - The document being updated in the history collection.
+     * A callback function executed when a history document is created.
+     * @param historyDocument - The document being created in the history collection.
+     * @param updateQuery - The update query of the original document.
      * @returns A Promise (for async operations) or void.
      */
-    onUpdate?: (historyDocument: any) => Promise<void> | void;
+    onUpdate?: (historyDocument: any, updateQuery: any) => Promise<void> | void;
 
     /**
      * A callback function executed when a history document is deleted.
@@ -228,13 +221,6 @@ interface IOptions {
      * @returns A Promise (for async operations) or void.
      */
     onDelete?: (historyDocument: any) => Promise<void> | void;
-
-    /**
-     * A callback function executed when a history document is created, so you can manipulate it.
-     * @param historyDocument - The document being created in the history collection.
-     * @returns A Promise (for async operations) or void.
-     */
-    onSaveHistory?: (historyDocument: any) => Promise<void> | void;
 }
 
 type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';
