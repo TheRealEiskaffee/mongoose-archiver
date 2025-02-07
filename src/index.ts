@@ -1,131 +1,190 @@
 import { Schema, Types } from 'mongoose';
 
-function cleanSchema(schema : any) {
-    if (typeof schema !== 'object' || schema === null) return schema;
-
-    const cleaned : any = {};
-
-    for (const key in schema) {
-        if (typeof schema?.[key] === 'object' && schema?.[key] !== null) {
-            cleaned[key] = cleanSchema(schema[key]);
-
-            if ('unique' in cleaned[key]) {
-                delete cleaned[key].unique;
-            }
-
-            if ('required' in cleaned[key]) {
-                delete cleaned[key].required;
-            }
-        } else {
-            cleaned[key] = schema[key];
-        }
-    }
-
-    return cleaned;
-}
 export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
-          updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
-          historySchema = new Schema(cleanSchema(schema.clone().obj));
+          updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne', 'save'],
+          historyCollectionName = `${schema.get('collection')}${options?.separator || '-'}history`,
+          clonedOriginSchema = schema.clone(),
+          rawOriginSchemaObject = { ...clonedOriginSchema.obj },
+          clonedIndexes = clonedOriginSchema
+            .indexes()
+            .map(([fields, options] : any) => {
+                const newOptions = { ...options };
+                delete newOptions.unique;
+                return [fields, newOptions];
+            }),
+          newChildSchemas: { schema: Schema; model: string }[] = [];
 
-    historySchema.add({
-        origin: {
-            type: Types.ObjectId,
-            index: true
-        },
-        version: {
-            type: Number,
-            default: 0,
-            required: true,
-        },
-        archived: {
-            at : {
-                type : Date,
-                default : () => new Date(),
-                index: true
+    const recursiveUniqueRemoverFN = function (schema: any) {
+        Object
+            .keys(schema)
+            .forEach(key => {
+                if (schema[key]?.type instanceof Schema) {
+                    recursiveUniqueRemoverFN(schema[key].type.obj);
+                } else if (typeof schema?.[key] === 'object' && schema?.[key] !== null) {
+                    if (schema?.[key]?.unique) delete schema[key].unique;
+
+                    recursiveUniqueRemoverFN(schema[key]);
+                }
+            });
+    };
+
+    const processChildSchemaRecursively = (childSchema : any): { schema: Schema; model: string } => {
+        const rawOriginChildSchemaObject = { ...childSchema.schema.obj };
+
+        recursiveUniqueRemoverFN(rawOriginChildSchemaObject);
+
+        const clonedChildIndexes = childSchema.schema
+            .indexes()
+            .map(([fields, options] : any) => {
+                const newOptions = { ...options };
+                delete newOptions.unique;
+                return [fields, newOptions];
+            });
+
+        const newChildSchema = new Schema(rawOriginChildSchemaObject, { validateBeforeSave: false }).clearIndexes();
+
+        clonedChildIndexes
+            ?.forEach(([fields, options] : any) => {
+                newChildSchema.index(fields, options);
+            });
+
+        const newNestedChildSchemas: { schema: Schema; model: string }[] = [];
+
+        childSchema.schema.childSchemas
+            ?.forEach((nestedChildSchema : any) => {
+                const processedNestedChildSchema = processChildSchemaRecursively(nestedChildSchema);
+                newNestedChildSchemas.push(processedNestedChildSchema);
+            });
+
+        newNestedChildSchemas
+            ?.forEach(({ schema, model }) => {
+                newChildSchema.add({ [model]: schema });
+            });
+
+        return {
+            schema : newChildSchema,
+            model : childSchema.model,
+        };
+    };
+    
+    schema.childSchemas
+        ?.forEach(childSchema => {
+            newChildSchemas.push(processChildSchemaRecursively(childSchema));
+        });
+
+    recursiveUniqueRemoverFN(rawOriginSchemaObject);
+          
+    const historySchema = new Schema(
+        {
+            ...rawOriginSchemaObject,
+            origin: {
+                type: Types.ObjectId,
             },
-            by: Types.ObjectId,
-        },
-        deleted: {
-            at : {
-                type : Date,
-                index: true
+            version: {
+                type: Number,
+                default: 0,
+                required: true,
             },
-            by: Types.ObjectId,
+            archived: {
+                at : {
+                    type : Date,
+                    default : () => new Date()
+                },
+                by: Types.ObjectId,
+            },
+            deleted: {
+                at : Date,
+                by: Types.ObjectId,
+            },
         },
-    });
+        {
+            collection: historyCollectionName,
+            validateBeforeSave: false,
+        },
+    ).clearIndexes();
+
+    newChildSchemas
+        .forEach(({ schema, model }) => {
+            historySchema.add({ [model]: schema });
+        });
+
+    clonedIndexes
+        .forEach(([fields, options]) => {
+            historySchema.index(fields, options);
+        });
 
     updateMethods.forEach((method : any) => {
-        schema.pre(method, async function (next) {
-            const updateQuery = this.getUpdate(),
-                  historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
-                  HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
+        schema
+            .pre(method, async function (next) {
+                const updateQuery = this.getUpdate(),
+                    HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
-            try {
-                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
+                try {
+                    const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
-                if(docToUpdate) {
-                    const version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1,
-                          historyDoc = new HistoryModel({
-                              ...docToUpdate,
-                              _id: new Types.ObjectId(),
-                              version,
-                              origin: docToUpdate._id,
-                              archived : {
-                                  at: new Date(),
-                                  by: this?.options?.user || updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
-                              }
-                          });
-                    
-                    await historyDoc.save();
+                    if(docToUpdate) {
+                        const version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1,
+                            historyDoc = new HistoryModel({
+                                ...docToUpdate,
+                                _id: new Types.ObjectId(),
+                                version,
+                                origin: docToUpdate._id,
+                                archived : {
+                                    at: new Date(),
+                                    by: this?.options?.user || updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                                }
+                            });
+                        
+                        await historyDoc.save();
 
-                    if(typeof options?.onUpdate === 'function') {
-                        options.onUpdate(historyDoc);
+                        if(typeof options?.onUpdate === 'function') {
+                            options.onUpdate(historyDoc);
+                        }
                     }
-                }
 
-                next();
-            } catch (error : any) {
-                next(error);
-            }
-        });
+                    next();
+                } catch (error : any) {
+                    next(error);
+                }
+            });
     });
 
     deleteMethods.forEach((method : any) => {
-        schema.pre(method, async function (next) {
-            const historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
-                  HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
+        schema
+            .pre(method, async function (next) {
+                const HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
-            try {
-                const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
+                try {
+                    const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
-                if(docToUpdate) {
-                    const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
-                          historyDoc = new HistoryModel({
-                              ...docToUpdate,
-                              version,
-                              archived : {
-                                  at : new Date(),
-                                  by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                              },
-                              deleted : {
-                                  at : new Date(),
-                                  by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                              }
-                          });
+                    if(docToUpdate) {
+                        const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
+                            historyDoc = new HistoryModel({
+                                ...docToUpdate,
+                                version,
+                                archived : {
+                                    at : new Date(),
+                                    by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                },
+                                deleted : {
+                                    at : new Date(),
+                                    by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                }
+                            });
 
-                    await historyDoc.save();
-                    
-                    if(typeof options?.onDelete === 'function') {
-                        options.onDelete(historyDoc);
+                        await historyDoc.save();
+                        
+                        if(typeof options?.onDelete === 'function') {
+                            options.onDelete(historyDoc);
+                        }
                     }
-                }
 
-                next();
-            } catch (error : any) {
-                next(error);
-            }
-        });
+                    next();
+                } catch (error : any) {
+                    next(error);
+                }
+            });
     });
 }
 
@@ -135,7 +194,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
 interface IOptions {
     /**
      * Specifies the field used to identify the user responsible for changes, 
-     * such as `userId`. This acts as a fallback if no specific field is provided.
+     * such as `updated_userId`. This acts as a fallback if no specific field is provided.
      */
     userField?: string;
 
