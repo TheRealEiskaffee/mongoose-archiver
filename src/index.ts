@@ -3,7 +3,6 @@ import { Schema, Types } from 'mongoose';
 export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
           updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne', 'save'],
-          historyCollectionName = `${schema.get('collection')}${options?.separator || '-'}history`,
           clonedOriginSchema = schema.clone(),
           rawOriginSchemaObject = { ...clonedOriginSchema.obj },
           clonedIndexes = clonedOriginSchema
@@ -74,7 +73,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
         });
 
     recursiveUniqueRemoverFN(rawOriginSchemaObject);
-          
+
     const historySchema = new Schema(
         {
             ...rawOriginSchemaObject,
@@ -99,8 +98,8 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
             },
         },
         {
-            collection: historyCollectionName,
-            validateBeforeSave: false,
+            validateBeforeSave : false,
+            strict : false,
         },
     ).clearIndexes();
 
@@ -114,78 +113,90 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
             historySchema.index(fields, options);
         });
 
-    updateMethods.forEach((method : any) => {
-        schema
-            .pre(method, async function (next) {
-                const updateQuery = this.getUpdate(),
-                    HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
+    updateMethods
+        .forEach((method : any) => {
+            schema
+                .pre(method, async function (next) {
+                    const updateQuery = this.getUpdate(),
+                          historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                          HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
-                try {
-                    const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
+                    try {
+                        const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
-                    if(docToUpdate) {
-                        const version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1,
-                            historyDoc = new HistoryModel({
-                                ...docToUpdate,
-                                _id: new Types.ObjectId(),
-                                version,
-                                origin: docToUpdate._id,
-                                archived : {
-                                    at: new Date(),
-                                    by: this?.options?.user || updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
-                                }
-                            });
-                        
-                        await historyDoc.save();
+                        if(docToUpdate) {
+                            const version = (await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) })) + 1,
+                                historyDoc = new HistoryModel({
+                                    ...docToUpdate,
+                                    _id: new Types.ObjectId(),
+                                    version,
+                                    origin: docToUpdate._id,
+                                    archived : {
+                                        at: new Date(),
+                                        by: this?.options?.user || updateQuery?.[options?.userField] || docToUpdate?.[options?.userField] || updateQuery?.updatedBy || updateQuery?.$set?.updatedBy || updateQuery?.createdBy,
+                                    }
+                                });
+                            
+                            await historyDoc.save();
 
-                        if(typeof options?.onUpdate === 'function') {
-                            options.onUpdate(historyDoc);
+                            if(typeof options?.onUpdate === 'function') {
+                                options.onUpdate(historyDoc);
+                            }
                         }
+
+                        next();
+                    } catch (error : any) {
+                        next(error);
                     }
+                });
+        });
 
-                    next();
-                } catch (error : any) {
-                    next(error);
-                }
-            });
-    });
+    deleteMethods
+        .forEach((method : any) => {
+            schema
+                .pre(method, async function (next) {
+                    const historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                          HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
-    deleteMethods.forEach((method : any) => {
-        schema
-            .pre(method, async function (next) {
-                const HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
+                    try {
+                        const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
 
-                try {
-                    const docToUpdate = (await this.model.findOne(this.getQuery()))?.toObject();
+                        if(docToUpdate) {
+                            const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
+                                historyDoc = new HistoryModel({
+                                    ...docToUpdate,
+                                    version,
+                                    archived : {
+                                        at : new Date(),
+                                        by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                    },
+                                    deleted : {
+                                        at : new Date(),
+                                        by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
+                                    }
+                                });
 
-                    if(docToUpdate) {
-                        const version = await HistoryModel.countDocuments({ origin: new Types.ObjectId(docToUpdate._id) }),
-                            historyDoc = new HistoryModel({
-                                ...docToUpdate,
-                                version,
-                                archived : {
-                                    at : new Date(),
-                                    by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                                },
-                                deleted : {
-                                    at : new Date(),
-                                    by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
-                                }
-                            });
-
-                        await historyDoc.save();
-                        
-                        if(typeof options?.onDelete === 'function') {
-                            options.onDelete(historyDoc);
+                            await historyDoc.save();
+                            
+                            if(typeof options?.onDelete === 'function') {
+                                options.onDelete(historyDoc);
+                            }
                         }
-                    }
 
-                    next();
-                } catch (error : any) {
-                    next(error);
-                }
+                        next();
+                    } catch (error : any) {
+                        next(error);
+                    }
+                });
+        });
+
+    if(typeof options?.onSaveHistory === 'function') {
+        historySchema
+            .pre('save', async function (next) {
+                await options.onSaveHistory(this);
+                next();
             });
-    });
+    }
 }
 
 /**
@@ -217,6 +228,13 @@ interface IOptions {
      * @returns A Promise (for async operations) or void.
      */
     onDelete?: (historyDocument: any) => Promise<void> | void;
+
+    /**
+     * A callback function executed when a history document is created, so you can manipulate it.
+     * @param historyDocument - The document being created in the history collection.
+     * @returns A Promise (for async operations) or void.
+     */
+    onSaveHistory?: (historyDocument: any) => Promise<void> | void;
 }
 
 type TMethod = 'aggregate' | 'bulkWrite' | 'count' | 'countDocuments' | 'createCollection' | 'deleteOne' | 'deleteMany' | 'estimatedDocumentCount' | 'find' | 'findOne' | 'findOneAndDelete' | 'findOneAndReplace' | 'findOneAndUpdate' | 'init' | 'insertMany' | 'replaceOne' | 'save' | 'update' | 'updateOne' | 'updateMany' | 'validate';
