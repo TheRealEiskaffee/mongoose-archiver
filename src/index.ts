@@ -2,7 +2,7 @@ import { Schema, Types } from 'mongoose';
 
 export default function mongooseArchiver(schema : Schema, options : IOptions) {
     const deleteMethods : TMethod[] = ['deleteOne', 'deleteMany', 'findOneAndDelete'],
-          updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne', 'save'],
+          updateMethods : TMethod[] = ['findOneAndUpdate', 'updateMany', 'updateOne'],
           clonedOriginSchema = schema.clone(),
           rawOriginSchemaObject = { ...clonedOriginSchema.obj },
           clonedIndexes = clonedOriginSchema
