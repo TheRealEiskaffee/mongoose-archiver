@@ -175,12 +175,12 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
                                         by : this?.options?.user || docToUpdate?.[options?.userField] || docToUpdate?.updatedBy || docToUpdate?.createdBy,
                                     }
                                 });
-
-                            await historyDoc.save();
-                            
+                                
                             if(typeof options?.onDelete === 'function') {
                                 options.onDelete(historyDoc);
                             }
+
+                            await historyDoc.save();
                         }
 
                         next();
