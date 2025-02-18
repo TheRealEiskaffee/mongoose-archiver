@@ -118,7 +118,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
             schema
                 .pre(method, async function (next) {
                     const updateQuery = this.getUpdate(),
-                          historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                          historyCollectionName = `${this.model?.collection?.collectionName || clonedOriginSchema?.get('collection')}${options?.separator || '-'}history`,
                           HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
                     try {
@@ -154,8 +154,8 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
     deleteMethods
         .forEach((method : any) => {
             schema
-                .pre(method, async function (next) {
-                    const historyCollectionName = `${this.model.collection.collectionName}${options?.separator || '-'}history`,
+                .pre(method, { document: true, query: false }, async function (next) {
+                    const historyCollectionName = `${this.model?.collection?.collectionName || clonedOriginSchema?.get('collection')}${options?.separator || '-'}history`,
                           HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
                     try {
