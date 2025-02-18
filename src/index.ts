@@ -154,7 +154,7 @@ export default function mongooseArchiver(schema : Schema, options : IOptions) {
     deleteMethods
         .forEach((method : any) => {
             schema
-                .pre(method, { document: true, query: false }, async function (next) {
+                .pre(method, async function (next) {
                     const historyCollectionName = `${this.model?.collection?.collectionName || clonedOriginSchema?.get('collection')}${options?.separator || '-'}history`,
                           HistoryModel = this.mongooseCollection.conn.model(`${this.model.modelName}History`, historySchema, historyCollectionName);
 
